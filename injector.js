@@ -1,3 +1,8 @@
+const options = {
+    'viewbox': 4500,
+    'pixelDensity': 20
+}
+
 class FakeSocket {
     constructor() {
         this.events = []
@@ -77,16 +82,26 @@ Object.clean = function(obj) {
 
 const socket = new FakeSocket()
 const spoofBuilder = new SpoofBuilder()
-//Joining game, killing myself, basic stuff...
 socket.spoofPacket(spoofBuilder.joinGame({name: "BadApple", id: 120, team: 1, x: 0, y: 0, invis: 0}))
 for (var i = 0; i <= 120; i++) {
     socket.spoofPacket(spoofBuilder.killEntity({id: i}))
 }
-//Set fake leaderboard
 socket.spoofPacket(spoofBuilder.leaderboardUpdate({players: [[120, "BadApple", 4600, 1337, 1]]}))
-//Zoom out
-socket.spoofPacket(spoofBuilder.zoomOut({id: 120, vx: 4500, vy: 4500}))
-//Reset points
+socket.spoofPacket(spoofBuilder.zoomOut({id: 120, vx: options.viewbox, vy: options.viewbox}))
 for (var i = 0; i <= 19; i++) {
     socket.spoofPacket(spoofBuilder.updatePoint({id: i, captureProgress: 0, team: 3}))
 }
+
+
+const pixelLocations = []
+var height = Math.round(options.viewbox / 9 * 16)
+var width = options.viewbox
+var pixelDensity = options.pixelDensity
+for (var x = 0; x < width; x += pixelDensity) {
+    var row = []
+    for (var y = 0; y < height; y += pixelDensity) {
+        row.push(0)
+    }
+    pixelLocations.push(row)
+}
+
