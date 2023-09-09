@@ -1,7 +1,8 @@
 const options = {
-    'viewbox': 4500,
-    'pixelDensity': 20
+    'viewbox': 2230,
+    'pixelDensity': 35
 }
+var objs = []
 
 class FakeSocket {
     constructor() {
@@ -50,6 +51,13 @@ class SpoofBuilder {
             obj.id,
         ].join(",")
     }
+    removeObj(obj) {
+        Object.clean(obj)
+        return [
+            "l",
+            obj.id
+        ].join(",")
+    }
     leaderboardUpdate(obj) {
         return [
             "w",
@@ -60,8 +68,8 @@ class SpoofBuilder {
         return [
             "v",
             obj.id,
-            obj.vx,
-            obj.vy
+            obj.vx || 1468,
+            obj.vy || 826
         ].join(",")
     }
     updatePoint(obj) {
@@ -70,6 +78,20 @@ class SpoofBuilder {
             obj.id,
             obj.captureProgress,
             obj.team
+        ].join(",")
+    }
+    objJoin(obj) {
+        Object.clean(obj)
+        return [
+            "j",
+            obj.id || Math.floor(Math.random() * 2000),
+            ["Health", "Barrier", "Turret"].indexOf(obj.type) || 1,
+            obj.x || 0,
+            obj.y || 0,
+            obj.radius || 35,
+            250,
+            250,
+            0
         ].join(",")
     }
 }
@@ -88,10 +110,9 @@ for (var i = 0; i <= 120; i++) {
 }
 socket.spoofPacket(spoofBuilder.leaderboardUpdate({players: [[120, "BadApple", 4600, 1337, 1]]}))
 socket.spoofPacket(spoofBuilder.zoomOut({id: 120, vx: options.viewbox, vy: options.viewbox}))
-for (var i = 0; i <= 19; i++) {
+for (var i = 0; i <= 18; i++) {
     socket.spoofPacket(spoofBuilder.updatePoint({id: i, captureProgress: 0, team: 3}))
 }
-
 
 const pixelLocations = []
 var height = Math.round(options.viewbox / 9 * 16)
@@ -105,3 +126,39 @@ for (var x = 0; x < width; x += pixelDensity) {
     pixelLocations.push(row)
 }
 
+const frameLoader = new WebSocket("ws://localhost:8080")
+frameLoader.onopen = () => {  
+    var frame = 1
+    var maxFrames = 6572
+    var frameLoop = setInterval(() => {
+        if (frame > maxFrames) {
+            clearInterval(frameLoop)
+            return
+        }
+        frameLoader.send(frame)
+        frame++
+    }, 33)
+}
+
+frameLoader.onmessage = (evt) => {
+    drawFrame(evt.data)
+}
+
+function drawFrame(frame) {
+    var pixels = frame.split("")
+    for (var i = 0; i < objs.length; i++) {
+        socket.spoofPacket(spoofBuilder.removeObj({ id: objs[i] }))
+        objs.splice(i, 1)
+    }
+    for (var i = 0; i < 36; i += 2) {
+        for (var j = 0; j < 64; j += 2) {
+            var pixel = pixels[i * 64 + j]
+            if (pixel == "0") continue
+            var x = (j * pixelDensity) - 1060
+            var y = (i * pixelDensity) - 600
+            var id = i * 32 + j / 2
+            socket.spoofPacket(spoofBuilder.objJoin({ id: id, type: "Barrier", x: x, y: y }))
+            objs.push(id)
+        }
+    }
+}
